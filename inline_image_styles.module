@@ -45,10 +45,16 @@ function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
       $file = file_load($fid);
       $path = ($style_name == 'none') ? file_create_url($file->uri)
         : image_style_url($style_name, $file->uri);
-      // Parse the URL to extract its components
-      $urlComponents = parse_url($path);
-      // Extract the path component, which is the relative URL
-      $relativePath = $urlComponents['path'];
+      // Check if path needs parsing
+      if (strpos($file->uri, 'public://') !== FALSE || strpos($file->uri, 'private://') !== FALSE) {
+        // Parse the URL to extract its components since it's a managed file path
+        $urlComponents = parse_url($path);
+        // Extract the path component, which is the relative URL
+        $relativePath = $urlComponents['path'];
+      } else {
+        // Use the $path as is since it doesn't contain 'public://' or 'private://'
+        $relativePath = $path;
+      }
       if ($return['#commands'][0]['values']['attributes']['src']
         != $relativePath
       ) {
