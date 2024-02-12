@@ -1,0 +1,75 @@
+<?php
+
+/**
+ * @file
+ * Inline Image Styles.
+ */
+
+/**
+ * Implements hook_form_FORM_ID_alter() for CKEditor image dialog form.
+ */
+function inline_image_styles_form_filter_format_editor_image_form_alter(&$form, &$form_state) {
+
+  // Retrieve stored attributes from the session, if available
+  $values = $_SESSION['inline_image_styles_last_attributes'];
+
+  $options = array("none" => t('Original'));
+  foreach (image_styles() as $name => $style) {
+    $options[$name] = $style['label'];
+  }
+
+  // Add the select field to the form.
+  $form['style'] = array(
+    '#title' => t('Image Style'),
+    '#type' => 'select',
+    '#default_value' => isset($values['style']) ? $values['style'] : 'none',
+    '#options' => $options,
+    '#wrapper_attributes' => array('class' => array('editor-image-style')),
+    '#parents' => array('attributes', 'style'),
+  );
+
+  // Adjust the AJAX callback for the form submission.
+  $form['actions']['submit']['#ajax']['callback'] = 'inline_image_styles_format_editor_dialog_save';
+}
+
+/**
+ * Custom AJAX callback function for the CKEditor image dialog form submission.
+ */
+function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
+  $return = filter_format_editor_dialog_save($form, $form_state);
+  if (isset($return['#commands'][0]['values']['attributes']['data-file-id'])) {
+    $fid = $return['#commands'][0]['values']['attributes']['data-file-id'];
+    if (!empty($fid)) {
+      $style_name = $return['#commands'][0]['values']['attributes']['style'];
+
+      $file = file_load($fid);
+      $path = ($style_name == 'none') ? file_create_url($file->uri)
+        : image_style_url($style_name, $file->uri);
+      // Parse the URL to extract its components
+      $urlComponents = parse_url($path);
+      // Extract the path component, which is the relative URL
+      $relativePath = $urlComponents['path'];
+      if ($return['#commands'][0]['values']['attributes']['src']
+        != $relativePath
+      ) {
+        $form_state['values']['attributes']['src'] = $relativePath;
+        $return['#commands'][0]['values']['attributes']['src'] = $relativePath;
+
+        // Clear image width & height if style has changed, but not size.
+        if (isset($form_state['values']['attributes']['style'])
+          && $form_state['values']['attributes']['style'] != 'none'
+        ) {
+          // Clear width and height because a style is applied
+          $form_state['values']['attributes']['width'] = '';
+          $return['#commands'][0]['values']['attributes']['width'] = '';
+          $form_state['values']['attributes']['height'] = '';
+          $return['#commands'][0]['values']['attributes']['height'] = '';
+        }
+      }
+    }
+  }
+
+  // Store the attributes array in the user's session for retrieval in form_alter
+  $_SESSION['inline_image_styles_last_attributes'] = $form_state['values']['attributes'];
+  return $return;
+}

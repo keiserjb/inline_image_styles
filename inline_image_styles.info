@@ -1,0 +1,4 @@
+name = Inline Image Styles
+description = CKEditor inline image styles
+backdrop = 1.x
+type = module
