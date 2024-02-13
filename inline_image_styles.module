@@ -19,13 +19,13 @@ function inline_image_styles_form_filter_format_editor_image_form_alter(&$form, 
   }
 
   // Add the select field to the form.
-  $form['style'] = array(
+  $form['image_style'] = array(
     '#title' => t('Image Style'),
     '#type' => 'select',
-    '#default_value' => isset($values['style']) ? $values['style'] : 'none',
+    '#default_value' => isset($values['data-image-style']) ? $values['data-image-style'] : 'none',
     '#options' => $options,
     '#wrapper_attributes' => array('class' => array('editor-image-style')),
-    '#parents' => array('attributes', 'style'),
+    '#parents' => array('attributes', 'data-image-style'),
   );
 
   // Adjust the AJAX callback for the form submission.
@@ -40,42 +40,111 @@ function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
   if (isset($return['#commands'][0]['values']['attributes']['data-file-id'])) {
     $fid = $return['#commands'][0]['values']['attributes']['data-file-id'];
     if (!empty($fid)) {
-      $style_name = $return['#commands'][0]['values']['attributes']['style'];
+      $style_name = $return['#commands'][0]['values']['attributes']['data-image-style'];
 
       $file = file_load($fid);
       $path = ($style_name == 'none') ? file_create_url($file->uri)
         : image_style_url($style_name, $file->uri);
       // Check if path needs parsing
-      if (strpos($file->uri, 'public://') !== FALSE || strpos($file->uri, 'private://') !== FALSE) {
+      if (strpos($file->uri, 'public://') !== FALSE
+        || strpos(
+          $file->uri,
+          'private://'
+        ) !== FALSE
+      ) {
         // Parse the URL to extract its components since it's a managed file path
         $urlComponents = parse_url($path);
         // Extract the path component, which is the relative URL
         $relativePath = $urlComponents['path'];
-      } else {
+      }
+      else {
         // Use the $path as is since it doesn't contain 'public://' or 'private://'
         $relativePath = $path;
       }
-      if ($return['#commands'][0]['values']['attributes']['src']
-        != $relativePath
+      if ($return['#commands'][0]['values']['attributes']['src'] != $relativePath
       ) {
-        $form_state['values']['attributes']['src'] = $relativePath;
-        $return['#commands'][0]['values']['attributes']['src'] = $relativePath;
-
-        // Clear image width & height if style has changed, but not size.
-        if (isset($form_state['values']['attributes']['style'])
-          && $form_state['values']['attributes']['style'] != 'none'
+        if ($return['#commands'][0]['values']['attributes']['src'] != $relativePath
         ) {
-          // Clear width and height because a style is applied
-          $form_state['values']['attributes']['width'] = '';
-          $return['#commands'][0]['values']['attributes']['width'] = '';
-          $form_state['values']['attributes']['height'] = '';
-          $return['#commands'][0]['values']['attributes']['height'] = '';
+          $form_state['values']['attributes']['src'] = $relativePath;
+          $return['#commands'][0]['values']['attributes']['src'] = $relativePath;
+
+          // Clear image width & height if style has changed, but not size.
+          if (isset($form_state['values']['attributes']['data-image-style'])
+            && $form_state['values']['attributes']['image_style'] != 'none'
+          ) {
+            // Clear width and height because a style is applied
+            $form_state['values']['attributes']['width'] = '';
+            $return['#commands'][0]['values']['attributes']['width'] = '';
+            $form_state['values']['attributes']['height'] = '';
+            $return['#commands'][0]['values']['attributes']['height'] = '';
+          }
+          // Ensure the data-image-style attribute is updated
+          $form_state['values']['attributes']['data-image-style'] = $style_name;
+          $return['#commands'][0]['values']['attributes']['data-image-style'] = $style_name;
         }
       }
     }
   }
-
+  dpm($form_state['values']);
   // Store the attributes array in the user's session for retrieval in form_alter
   $_SESSION['inline_image_styles_last_attributes'] = $form_state['values']['attributes'];
   return $return;
 }
+
+/**
+ * Implements hook_ckeditor_plugins().
+ *
+ * Registers a CKEditor plugin to allow selection of image styles within
+ * CKEditor, without adding a button to the toolbar.
+ */
+function inline_image_styles_ckeditor_plugins() {
+  $module_path = backdrop_get_path('module', 'inline_image_styles');
+  // Adjusted the path to reflect the actual location of plugin.js
+  $plugin_path = $module_path . '/ckeditor/plugins';
+  $plugins['inline_image_styles_ckeditor'] = [
+    'path' => $plugin_path,
+    'file' => 'plugin.js', // This now correctly points to the file location
+    'internal' => FALSE,
+    'enabled callback' => 'inline_image_styles_plugin_check',
+  ];
+  dpm($plugins);
+  return $plugins;
+}
+
+
+/**
+ * Callback to enable CKEditor inline image style plugin.
+ */
+function inline_image_styles_plugin_check($format, $plugin_name) {
+  return !empty($format->editor_settings['inline_image_styles_ckeditor']['status']);
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter() to add inline image style settings to the text format editor.
+ */
+function inline_image_styles_form_filter_admin_format_form_alter(&$form, &$form_state) {
+  // Retrieve existing settings or set defaults.
+  $settings = isset($form_state['format']->editor_settings['inline_image_styles_ckeditor'])
+    ? $form_state['format']->editor_settings['inline_image_styles_ckeditor']
+    : ['status' => FALSE];
+
+  // Define the fieldset for CKEditor inline image style settings.
+  $form['editor_settings']['plugins']['inline_image_styles_ckeditor'] = [
+    '#type' => 'fieldset',
+    '#title' => t('Inline Image Styles'),
+    '#tree' => TRUE,
+    '#attributes' => ['class' => ['inline-image-styles-settings']],
+    '#parents' => ['editor_settings', 'inline_image_styles_ckeditor'],
+  ];
+
+  // Add a checkbox to enable/disable the feature.
+  $form['editor_settings']['plugins']['inline_image_styles_ckeditor']['status'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Enable'),
+    '#default_value' => $settings['status'],
+    '#description' => t('Enable inline image styles in CKEditor.'),
+  ];
+}
+
+
+
