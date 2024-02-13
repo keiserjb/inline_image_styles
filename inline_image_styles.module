@@ -70,7 +70,7 @@ function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
 
           // Clear image width & height if style has changed, but not size.
           if (isset($form_state['values']['attributes']['data-image-style'])
-            && $form_state['values']['attributes']['image_style'] != 'none'
+            && $form_state['values']['attributes']['data-image-style'] != 'none'
           ) {
             // Clear width and height because a style is applied
             $form_state['values']['attributes']['width'] = '';
@@ -85,7 +85,6 @@ function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
       }
     }
   }
-  dpm($form_state['values']);
   // Store the attributes array in the user's session for retrieval in form_alter
   $_SESSION['inline_image_styles_last_attributes'] = $form_state['values']['attributes'];
   return $return;
@@ -97,7 +96,7 @@ function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
  * Registers a CKEditor plugin to allow selection of image styles within
  * CKEditor, without adding a button to the toolbar.
  */
-function inline_image_styles_ckeditor_plugins() {
+/*function inline_image_styles_ckeditor_plugins() {
   $module_path = backdrop_get_path('module', 'inline_image_styles');
   // Adjusted the path to reflect the actual location of plugin.js
   $plugin_path = $module_path . '/ckeditor/plugins';
@@ -107,22 +106,66 @@ function inline_image_styles_ckeditor_plugins() {
     'internal' => FALSE,
     'enabled callback' => 'inline_image_styles_plugin_check',
   ];
-  dpm($plugins);
   return $plugins;
+}*/
+
+/**
+ * Implements hook_ckeditor_plugins_alter().
+ */
+function inline_image_styles_ckeditor_plugins_alter(&$plugins) {
+  // Replaced.
+  $path = backdrop_get_path('module', 'inline_image_styles');
+  $image_prefix = backdrop_get_path('module', 'ckeditor') . '/images/buttons/';
+
+  // The backdropimage plugin replaces normal image functionality.
+  $plugins['backdropimage'] = array(
+    'path' => $path . '/ckeditor/plugins/backdropimage',
+    'file' => 'plugin.js',
+    'buttons' => array(
+      'BackdropImage' => array(
+        'label' => t('Image'),
+        'required_html' => array(
+          array(
+            'tags' => array('img'),
+            'attributes' => array('src', 'alt', 'data-file-id', 'data-align'),
+          ),
+        ),
+        'image' => $image_prefix . 'image.png',
+      ),
+    ),
+  );
+
+  // The backdropcaption plugin provides consistent behaviors for image captions.
+  $plugins['backdropimagecaption'] = array(
+    'path' => $path . '/ckeditor/plugins/backdropimagecaption',
+    'file' => 'plugin.js',
+    'css' => array(backdrop_get_path('module', 'ckeditor') . '/css/ckeditor-caption.css'),
+    'enabled callback' => 'ckeditor_image_plugin_check',
+    'required_html' => array(
+      array(
+        'tags' => array('img'),
+        'attributes' => array('data-caption'),
+      ),
+      array(
+        'tags' => array('figure', 'figcaption'),
+        'attributes' => array('src', 'alt', 'class', 'data-placeholder'),
+      ),
+    )
+  );
 }
 
 
 /**
  * Callback to enable CKEditor inline image style plugin.
  */
-function inline_image_styles_plugin_check($format, $plugin_name) {
+/*function inline_image_styles_plugin_check($format, $plugin_name) {
   return !empty($format->editor_settings['inline_image_styles_ckeditor']['status']);
-}
+}*/
 
 /**
  * Implements hook_form_FORM_ID_alter() to add inline image style settings to the text format editor.
  */
-function inline_image_styles_form_filter_admin_format_form_alter(&$form, &$form_state) {
+/*function inline_image_styles_form_filter_admin_format_form_alter(&$form, &$form_state) {
   // Retrieve existing settings or set defaults.
   $settings = isset($form_state['format']->editor_settings['inline_image_styles_ckeditor'])
     ? $form_state['format']->editor_settings['inline_image_styles_ckeditor']
@@ -144,7 +187,7 @@ function inline_image_styles_form_filter_admin_format_form_alter(&$form, &$form_
     '#default_value' => $settings['status'],
     '#description' => t('Enable inline image styles in CKEditor.'),
   ];
-}
+}*/
 
 
 
