@@ -154,6 +154,76 @@ function inline_image_styles_ckeditor_plugins_alter(&$plugins) {
   );
 }
 
+/**
+ * Implements hook_library_info_alter().
+ */
+function inline_image_styles_library_info_alter(&$libraries, $module) {
+  // Check if the CKEditor 5 module's libraries are being altered
+  if ($module == 'ckeditor5' && isset($libraries['backdrop.ckeditor5.backdrop-image'])) {
+    $path = backdrop_get_path('module', 'inline_image_styles')
+      . '/ckeditor5/plugins/backdrop-image/backdrop-image.js';
+
+    // Correctly structure the JS array to include the custom plugin script
+    // Note: Adjusting to the correct format as per Backdrop documentation
+    $libraries['backdrop.ckeditor5.backdrop-image']['js'][$path] = array('group' => JS_LIBRARY, 'weight' => 5);
+  }
+}
+
+/**
+ * Implements hook_ckeditor5_plugins_alter().
+ */
+function inline_image_styles_ckeditor5_plugins_alter(array &$plugins) {
+  $image_prefix = backdrop_get_path('module', 'ckeditor5') . '/icons/';
+  // The BackdropImage plugin extends the default CKEditor Image plugin.
+  $plugins['backdropImage.BackdropImage'] = [
+    'library' => ['ckeditor5', 'backdrop.ckeditor5.backdrop-image'],
+    'buttons' => [
+      'backdropImage' => [
+        'label'               => t('Image'),
+        'plugin_dependencies' => [
+          'image.Image',
+          'image.ImageToolbar',
+          'image.ImageInsertUI',
+          'image.ImageUpload',
+          'image.ImageResize',
+          'image.ImageCaptionUtils',
+        ],
+        'required_html'       => [
+          '<img src alt height width data-file-id data-image-style>',
+        ],
+        'image'               => $image_prefix . '/image.svg',
+      ],
+    ],
+    'config'  => [
+      'image'         => [
+        // Configure the balloon toolbar items shown when an image is selected.
+        'toolbar'    => [
+          'imageTextAlternative',
+          'editBackdropImage',
+        ],
+        'upload'     => [
+          'type' => image_get_supported_extensions(),
+        ],
+        'resizeUnit' => 'px',
+      ],
+      'backdropImage' => [
+        'editLabel'       => t('Edit Image'),
+        'insertLabel'     => t('Insert Image'),
+        // Specify an array of CKEditor model name => attribute name values.
+        // These attributes are then allowed to be changed via the Backdrop
+        // image dialog. Additional attributes can be added here to prevent
+        // CKEditor from striping out attributes on img tags.
+        'extraAttributes' => [
+          'dataFileId' => 'data-file-id',
+          'alt'        => 'alt',
+          'src'        => 'src',
+          'width'      => 'width',
+          'height'     => 'height',
+        ],
+      ],
+    ],
+  ];
+}
 
 /**
  * Callback to enable CKEditor inline image style plugin.

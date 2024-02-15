@@ -21,7 +21,6 @@ CKEDITOR.plugins.add('backdropimage', {
     // additional data-file-id attribute.
     editor.on('widgetDefinition', function (event) {
       var widgetDefinition = event.data;
-      console.log("Widget Definition Event Called", widgetDefinition.name);
       if (widgetDefinition.name !== 'image') {
         return;
       }

@@ -29,7 +29,6 @@ CKEDITOR.plugins.add('backdropimagecaption', {
     // data-align and data-caption attributes.
     editor.on('widgetDefinition', function (event) {
       var widgetDefinition = event.data;
-      console.log("Widget Definition Event Called", widgetDefinition.name);
       if (widgetDefinition.name !== 'image') {
         return;
       }
