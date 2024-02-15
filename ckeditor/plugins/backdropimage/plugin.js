@@ -15,7 +15,6 @@
 
 CKEDITOR.plugins.add('backdropimage', {
   requires: 'image2,uploadwidget',
-
   beforeInit: function (editor) {
     // Override the image2 widget definition to require and handle the
     // additional data-file-id attribute.

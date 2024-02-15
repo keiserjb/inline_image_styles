@@ -6,13 +6,23 @@
  */
 
 /**
+ * Implements hook_form_FORM_ID_alter() for node edit forms.
+ */
+function inline_image_styles_form_node_form_alter(&$form, &$form_state, $form_id) {
+  // Define the path to your module.
+  $module_path = backdrop_get_path('module', 'inline_image_styles');
+
+  // Add your CSS file to the form.
+  backdrop_add_css($module_path . '/css/ckeditor5.css');
+}
+
+
+/**
  * Implements hook_form_FORM_ID_alter() for CKEditor image dialog form.
  */
 function inline_image_styles_form_filter_format_editor_image_form_alter(&$form, &$form_state) {
-
-  // Retrieve stored attributes from the session, if available
+  // Retrieve stored attributes from the session, if available.
   $values = $_SESSION['inline_image_styles_last_attributes'];
-
   $options = array("none" => t('Original'));
   foreach (image_styles() as $name => $style) {
     $options[$name] = $style['label'];
@@ -26,11 +36,57 @@ function inline_image_styles_form_filter_format_editor_image_form_alter(&$form, 
     '#options' => $options,
     '#wrapper_attributes' => array('class' => array('editor-image-style')),
     '#parents' => array('attributes', 'data-image-style'),
+    '#ajax' => array(
+      'callback' => 'inline_image_styles_image_style_ajax_callback',
+      'wrapper' => 'size-wrapper',
+      'effect' => 'fade',
+      'method' => 'replace',
+      'speed' => 'fast',
+    ),
   );
+
+  // Ensure the size fieldset has an ID for AJAX replacement.
+  $form['size']['#prefix'] = '<div id="size-wrapper">';
+  $form['size']['#suffix'] = '</div>';
 
   // Adjust the AJAX callback for the form submission.
   $form['actions']['submit']['#ajax']['callback'] = 'inline_image_styles_format_editor_dialog_save';
 }
+
+function inline_image_styles_image_style_ajax_callback($form, &$form_state) {
+  // Determine the selected image style.
+  $selected_style = $form_state['values']['attributes']['data-image-style'];
+
+  // Check if 'Original' is selected.
+  if ($selected_style === 'none' && !empty($_SESSION['inline_image_styles_last_attributes']['src'])) {
+    // Retrieve the image src from the session.
+    $image_src = $_SESSION['inline_image_styles_last_attributes']['src'];
+
+    // Use getimagesize() with the src URL directly.
+    // Ensure that allow_url_fopen is enabled in your PHP configuration.
+    $image_info = @getimagesize($image_src);
+    if ($image_info) {
+      $width = $image_info[0];
+      $height = $image_info[1];
+
+      // Set the dimensions in the form fields
+      $form['size']['width']['#default_value'] = $width;
+      $form['size']['height']['#default_value'] = $height;
+    }
+
+    // Ensure the size section is accessible.
+    $form['size']['#access'] = TRUE;
+  } else {
+    // Hide the size fields for other selections.
+    $form['size']['#access'] = FALSE;
+  }
+
+  // Return the updated part of the form for AJAX replacement.
+  return $form['size'];
+}
+
+
+
 
 /**
  * Custom AJAX callback function for the CKEditor image dialog form submission.
@@ -113,7 +169,6 @@ function inline_image_styles_format_editor_dialog_save($form, &$form_state) {
  * Implements hook_ckeditor_plugins_alter().
  */
 function inline_image_styles_ckeditor_plugins_alter(&$plugins) {
-  // Replaced.
   $path = backdrop_get_path('module', 'inline_image_styles');
   $image_prefix = backdrop_get_path('module', 'ckeditor') . '/images/buttons/';
 
@@ -121,6 +176,7 @@ function inline_image_styles_ckeditor_plugins_alter(&$plugins) {
   $plugins['backdropimage'] = array(
     'path' => $path . '/ckeditor/plugins/backdropimage',
     'file' => 'plugin.js',
+    'css' => array($path . '/css/ckeditor.css'),
     'buttons' => array(
       'BackdropImage' => array(
         'label' => t('Image'),
@@ -139,7 +195,7 @@ function inline_image_styles_ckeditor_plugins_alter(&$plugins) {
   $plugins['backdropimagecaption'] = array(
     'path' => $path . '/ckeditor/plugins/backdropimagecaption',
     'file' => 'plugin.js',
-    'css' => array(backdrop_get_path('module', 'ckeditor') . '/css/ckeditor-caption.css'),
+    'css' => array($path . '/css/ckeditor.css'),
     'enabled callback' => 'ckeditor_image_plugin_check',
     'required_html' => array(
       array(
@@ -158,16 +214,22 @@ function inline_image_styles_ckeditor_plugins_alter(&$plugins) {
  * Implements hook_library_info_alter().
  */
 function inline_image_styles_library_info_alter(&$libraries, $module) {
+  $module_path = backdrop_get_path('module', 'ckeditor5');
   // Check if the CKEditor 5 module's libraries are being altered
   if ($module == 'ckeditor5' && isset($libraries['backdrop.ckeditor5.backdrop-image'])) {
     $path = backdrop_get_path('module', 'inline_image_styles')
       . '/ckeditor5/plugins/backdrop-image/backdrop-image.js';
 
+
     // Correctly structure the JS array to include the custom plugin script
     // Note: Adjusting to the correct format as per Backdrop documentation
     $libraries['backdrop.ckeditor5.backdrop-image']['js'][$path] = array('group' => JS_LIBRARY, 'weight' => 5);
+
   }
 }
+
+
+
 
 /**
  * Implements hook_ckeditor5_plugins_alter().

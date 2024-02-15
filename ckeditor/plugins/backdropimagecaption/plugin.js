@@ -15,6 +15,7 @@ CKEDITOR.plugins.add('backdropimagecaption', {
   requires: 'backdropimage',
 
   beforeInit: function (editor) {
+
     // Backdrop.t() will not work inside CKEditor plugins because CKEditor loads
     // the JavaScript file instead of Backdrop. Pull translated strings from the
     // plugin settings that are translated server-side.
